@@ -1,5 +1,10 @@
 import type React from "react";
-import type { Todo } from "../App";
+
+export interface Todo {
+  id: number;
+  title: string;
+  completed: boolean;
+}
 
 interface TodoListProps {
   todos: Todo[];
