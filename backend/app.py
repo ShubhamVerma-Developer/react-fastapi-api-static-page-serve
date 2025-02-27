@@ -1,9 +1,16 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse, HTMLResponse
 from pydantic import BaseModel
-from typing import List, Optional
+from typing import List
 import uvicorn
+import os
+import mimetypes
+
+# Ensure .js files are served with the correct MIME type
+mimetypes.add_type("application/javascript", ".js")
+mimetypes.add_type("text/css", ".css")
 
 # Initialize FastAPI app
 app = FastAPI(title="FastAPI with React")
@@ -82,14 +89,25 @@ async def delete_todo(todo_id: int):
     raise HTTPException(status_code=404, detail="Todo not found")
 
 
-# Mount static files (React build)
-app.mount("/", StaticFiles(directory="static", html=True), name="static")
+# Serve static files
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
 
-# Root endpoint redirects to static index.html
-@app.get("/", include_in_schema=False)
-async def root():
-    return {"message": "API is running. Frontend is served at the root path."}
+# Handle client-side routing
+@app.get("/{full_path:path}")
+async def serve_react(full_path: str, request: Request):
+    if full_path.startswith("api/"):
+        raise HTTPException(status_code=404, detail="API endpoint not found")
+
+    # Ensure we are serving files from the static directory
+    file_path = os.path.join("static", full_path)
+
+    if os.path.isfile(file_path):
+        mime_type, _ = mimetypes.guess_type(file_path)
+        return FileResponse(file_path, media_type=mime_type)
+
+    # Serve index.html for React routes
+    return FileResponse("static/index.html")
 
 
 if __name__ == "__main__":
